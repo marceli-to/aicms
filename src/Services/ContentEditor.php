@@ -136,7 +136,8 @@ PROMPT;
                 'description' => 'List all editable files',
                 'input_schema' => [
                     'type' => 'object',
-                    'properties' => [],
+                    'properties' => (object)[],
+                    'required' => [],
                 ],
             ],
         ];
