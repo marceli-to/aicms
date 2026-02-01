@@ -10,6 +10,9 @@ class ChatPanel extends Component
     public string $message = '';
     public array $messages = [];
     public bool $isLoading = false;
+    public string $loadingStatus = '';
+    public bool $showHistory = false;
+    public array $history = [];
 
     public function sendMessage(): void
     {
@@ -24,6 +27,7 @@ class ChatPanel extends Component
         ];
         $this->message = '';
         $this->isLoading = true;
+        $this->loadingStatus = 'Thinking...';
 
         try {
             $editor = app(ContentEditor::class);
@@ -34,6 +38,11 @@ class ChatPanel extends Component
                 'content' => $response['message'],
                 'changes' => $response['changes'] ?? [],
             ];
+
+            // Refresh history if we made changes
+            if (!empty($response['changes'])) {
+                $this->loadHistory();
+            }
         } catch (\Exception $e) {
             $this->messages[] = [
                 'role' => 'assistant',
@@ -43,11 +52,53 @@ class ChatPanel extends Component
         }
 
         $this->isLoading = false;
+        $this->loadingStatus = '';
     }
 
     public function clearHistory(): void
     {
         $this->messages = [];
+    }
+
+    public function toggleHistory(): void
+    {
+        $this->showHistory = !$this->showHistory;
+        if ($this->showHistory) {
+            $this->loadHistory();
+        }
+    }
+
+    public function loadHistory(): void
+    {
+        $editor = app(ContentEditor::class);
+        $changes = $editor->getHistory(20);
+
+        $this->history = $changes->map(fn($c) => [
+            'id' => $c->id,
+            'file' => $c->file_path,
+            'summary' => $c->summary ?? 'Content updated',
+            'date' => $c->created_at->diffForHumans(),
+        ])->toArray();
+    }
+
+    public function undoChange(int $changeId): void
+    {
+        $editor = app(ContentEditor::class);
+
+        if ($editor->undoChange($changeId)) {
+            $this->messages[] = [
+                'role' => 'assistant',
+                'content' => 'Change reverted successfully.',
+                'changes' => [['file' => 'Reverted', 'action' => 'undo']],
+            ];
+            $this->loadHistory();
+        } else {
+            $this->messages[] = [
+                'role' => 'assistant',
+                'content' => 'Could not revert this change.',
+                'error' => true,
+            ];
+        }
     }
 
     public function render()

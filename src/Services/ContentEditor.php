@@ -8,9 +8,11 @@ use Illuminate\Support\Facades\Http;
 class ContentEditor
 {
     protected array $editableFiles = [];
+    protected ?ChangeHistory $changeHistory = null;
 
-    public function __construct()
+    public function __construct(?ChangeHistory $changeHistory = null)
     {
+        $this->changeHistory = $changeHistory ?? app(ChangeHistory::class);
         $this->loadEditableFiles();
     }
 
@@ -45,14 +47,44 @@ class ContentEditor
         return File::get($this->editableFiles[$relativePath]);
     }
 
-    public function writeFile(string $relativePath, string $content): bool
+    public function writeFile(string $relativePath, string $content, ?string $summary = null): bool
     {
         if (!isset($this->editableFiles[$relativePath])) {
             return false;
         }
 
+        // Record change history
+        $before = File::exists($this->editableFiles[$relativePath])
+            ? File::get($this->editableFiles[$relativePath])
+            : '';
+
         File::put($this->editableFiles[$relativePath], $content);
+
+        // Save to history
+        $this->changeHistory->record($relativePath, $before, $content, $summary);
+
         return true;
+    }
+
+    public function undoChange(int $changeId): bool
+    {
+        $revert = $this->changeHistory->revert($changeId);
+
+        if (!$revert || !isset($this->editableFiles[$revert['file_path']])) {
+            return false;
+        }
+
+        // Record this revert as a new change
+        $currentContent = File::get($this->editableFiles[$revert['file_path']]);
+        File::put($this->editableFiles[$revert['file_path']], $revert['content']);
+        $this->changeHistory->record($revert['file_path'], $currentContent, $revert['content'], 'Undo');
+
+        return true;
+    }
+
+    public function getHistory(int $limit = 20): \Illuminate\Database\Eloquent\Collection
+    {
+        return $this->changeHistory->getHistory(null, $limit);
     }
 
     public function processMessage(string $message, array $conversationHistory): array
