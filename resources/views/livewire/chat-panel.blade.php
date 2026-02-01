@@ -26,7 +26,7 @@
                     </div>
                 </div>
             @empty
-                <div x-show="!pendingMessage" class="h-full flex flex-col items-center justify-center text-center text-gray-500">
+                <div x-show="!pendingMessage && !isLoading" x-cloak class="h-full flex flex-col items-center justify-center text-center text-gray-500">
                     <div class="text-5xl mb-4">✨</div>
                     <p class="text-lg font-medium text-gray-700 mb-2">Ready to edit</p>
                     <p class="text-gray-500 mb-4">Ask me to change any text on your website.</p>
