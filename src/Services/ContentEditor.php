@@ -250,8 +250,16 @@ PROMPT;
 
         // If there were tool uses, we need to continue the conversation
         if (!empty($toolResults) && $response['stop_reason'] === 'tool_use') {
+            // Ensure tool_use inputs are proper objects for JSON encoding
+            $assistantContent = array_map(function ($block) {
+                if ($block['type'] === 'tool_use' && isset($block['input'])) {
+                    $block['input'] = (object) $block['input'];
+                }
+                return $block;
+            }, $response['content']);
+
             // Build continuation messages properly
-            $messages[] = ['role' => 'assistant', 'content' => $response['content']];
+            $messages[] = ['role' => 'assistant', 'content' => $assistantContent];
             $messages[] = ['role' => 'user', 'content' => $toolResults];
 
             $continueResponse = $this->callAnthropic(
