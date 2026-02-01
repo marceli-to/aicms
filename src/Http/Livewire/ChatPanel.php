@@ -53,6 +53,8 @@ class ChatPanel extends Component
 
         $this->isLoading = false;
         $this->loadingStatus = '';
+
+        $this->dispatch('message-sent');
     }
 
     public function clearHistory(): void

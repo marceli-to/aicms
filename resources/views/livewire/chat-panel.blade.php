@@ -1,4 +1,4 @@
-<div class="flex gap-4">
+<div class="flex gap-4" x-data="{ pendingMessage: '' }" x-on:message-sent.window="pendingMessage = ''"
     {{-- Main Chat Panel --}}
     <div class="flex-1 bg-white rounded-lg shadow-lg overflow-hidden">
         {{-- Messages Area --}}
@@ -28,8 +28,17 @@
                 </div>
             @endforelse
 
+            {{-- Pending user message - shows immediately on submit --}}
+            <template x-if="pendingMessage">
+                <div class="flex justify-end">
+                    <div class="max-w-[80%] rounded-lg p-3 bg-blue-500 text-white">
+                        <div class="whitespace-pre-wrap" x-text="pendingMessage"></div>
+                    </div>
+                </div>
+            </template>
+
             {{-- Loading indicator - shows immediately on submit --}}
-            <div wire:loading wire:target="sendMessage" class="flex justify-start">
+            <div x-show="pendingMessage" class="flex justify-start">
                 <div class="bg-gray-100 rounded-lg p-3">
                     <div class="flex items-center space-x-2">
                         <svg class="animate-spin h-4 w-4 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -44,23 +53,26 @@
 
         {{-- Input Area --}}
         <div class="border-t p-4">
-            <form wire:submit="sendMessage" class="flex space-x-2">
+            <form 
+                wire:submit="sendMessage" 
+                x-on:submit="pendingMessage = $wire.message; setTimeout(() => { const c = document.getElementById('messages-container'); c.scrollTop = c.scrollHeight; }, 50)"
+                x-on:livewire:navigated.window="pendingMessage = ''"
+                class="flex space-x-2"
+            >
                 <input
                     type="text"
                     wire:model="message"
                     placeholder="What would you like to change?"
                     class="flex-1 rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:border-blue-500 disabled:bg-gray-100"
-                    wire:loading.attr="disabled"
-                    wire:target="sendMessage"
+                    x-bind:disabled="pendingMessage !== ''"
                 >
                 <button
                     type="submit"
                     class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed min-w-[100px]"
-                    wire:loading.attr="disabled"
-                    wire:target="sendMessage"
+                    x-bind:disabled="pendingMessage !== ''"
                 >
-                    <span wire:loading.remove wire:target="sendMessage">Send</span>
-                    <span wire:loading wire:target="sendMessage" class="flex items-center justify-center">
+                    <span x-show="!pendingMessage">Send</span>
+                    <span x-show="pendingMessage" class="flex items-center justify-center">
                         <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
