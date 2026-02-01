@@ -252,11 +252,12 @@ PROMPT;
         if (!empty($toolResults) && $response['stop_reason'] === 'tool_use') {
             // Ensure tool_use inputs are proper objects for JSON encoding
             $assistantContent = array_map(function ($block) {
-                if ($block['type'] === 'tool_use' && isset($block['input'])) {
-                    $block['input'] = (object) $block['input'];
+                if ($block['type'] === 'tool_use') {
+                    // Force input to be an object, even if empty or missing
+                    $block['input'] = $this->ensureObject($block['input'] ?? []);
                 }
                 return $block;
-            }, $response['content']);
+            }, $response['content'] ?? []);
 
             // Build continuation messages properly
             $messages[] = ['role' => 'assistant', 'content' => $assistantContent];
@@ -283,8 +284,8 @@ PROMPT;
     protected function executeTool(string $name, array $input): array
     {
         return match ($name) {
-            'read_file' => $this->toolReadFile($input['path']),
-            'write_file' => $this->toolWriteFile($input['path'], $input['content']),
+            'read_file' => $this->toolReadFile($input['path'] ?? ''),
+            'write_file' => $this->toolWriteFile($input['path'] ?? '', $input['content'] ?? ''),
             'list_files' => $this->toolListFiles(),
             default => ['success' => false, 'content' => 'Unknown tool'],
         };
@@ -323,6 +324,34 @@ PROMPT;
             'success' => true,
             'content' => implode("\n", $this->getEditableFiles()),
         ];
+    }
+
+    /**
+     * Ensure a value is encoded as a JSON object, not array.
+     * Recursively converts associative arrays to stdClass.
+     */
+    protected function ensureObject(mixed $value): mixed
+    {
+        if (!is_array($value)) {
+            return $value;
+        }
+
+        // Empty array should become empty object
+        if (empty($value)) {
+            return new \stdClass();
+        }
+
+        // Check if it's a sequential array (list) vs associative
+        if (array_is_list($value)) {
+            return array_map(fn($v) => $this->ensureObject($v), $value);
+        }
+
+        // Associative array → object
+        $obj = new \stdClass();
+        foreach ($value as $key => $v) {
+            $obj->$key = $this->ensureObject($v);
+        }
+        return $obj;
     }
 
 }

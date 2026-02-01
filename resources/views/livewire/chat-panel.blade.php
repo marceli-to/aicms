@@ -1,4 +1,4 @@
-<div class="flex gap-6">
+<div class="flex gap-6" x-data="{ pendingMessage: '', isLoading: false }">
     {{-- Main Chat Panel --}}
     <div class="flex-1 bg-white/60 backdrop-blur-sm rounded-2xl border border-gray-200/40 overflow-hidden shadow-sm">
         {{-- Messages Area --}}
@@ -26,7 +26,7 @@
                     </div>
                 </div>
             @empty
-                <div class="h-full flex flex-col items-center justify-center text-center text-gray-500">
+                <div x-show="!pendingMessage" class="h-full flex flex-col items-center justify-center text-center text-gray-500">
                     <div class="text-5xl mb-4">✨</div>
                     <p class="text-lg font-medium text-gray-700 mb-2">Ready to edit</p>
                     <p class="text-gray-500 mb-4">Ask me to change any text on your website.</p>
@@ -34,8 +34,15 @@
                 </div>
             @endforelse
 
-            {{-- Loading indicator --}}
-            <div wire:loading wire:target="sendMessage" class="flex justify-start">
+            {{-- Optimistic user message (shown immediately) --}}
+            <div x-show="pendingMessage" x-cloak class="flex justify-end">
+                <div class="max-w-[80%] rounded-2xl px-4 py-3 bg-jarvis-500 text-white">
+                    <div class="whitespace-pre-wrap" x-text="pendingMessage"></div>
+                </div>
+            </div>
+
+            {{-- Loading indicator (Alpine-controlled) --}}
+            <div x-show="isLoading" x-cloak class="flex justify-start">
                 <div class="bg-white border border-gray-200/60 rounded-2xl px-4 py-3">
                     <div class="flex items-center gap-3">
                         <div class="flex gap-1">
@@ -51,23 +58,36 @@
 
         {{-- Input Area --}}
         <div class="border-t border-gray-200/60 p-4 bg-white/40">
-            <form wire:submit="sendMessage" class="flex gap-3">
+            <form
+                x-on:submit.prevent="
+                    if (!$wire.message.trim()) return;
+                    pendingMessage = $wire.message;
+                    isLoading = true;
+                    $nextTick(() => {
+                        const container = document.getElementById('messages-container');
+                        if (container) container.scrollTop = container.scrollHeight;
+                    });
+                    $wire.sendMessage().then(() => {
+                        pendingMessage = '';
+                        isLoading = false;
+                    });
+                "
+                class="flex gap-3"
+            >
                 <input
                     type="text"
                     wire:model="message"
                     placeholder="What would you like to change?"
                     class="flex-1 rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-jarvis-500/20 focus:border-jarvis-500 transition-all"
-                    wire:loading.attr="disabled"
-                    wire:target="sendMessage"
+                    x-bind:disabled="isLoading"
                 >
                 <button
                     type="submit"
                     class="bg-jarvis-500 hover:bg-jarvis-600 text-white px-6 py-3 rounded-xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed min-w-[100px] flex items-center justify-center"
-                    wire:loading.attr="disabled"
-                    wire:target="sendMessage"
+                    x-bind:disabled="isLoading"
                 >
-                    <span wire:loading.remove wire:target="sendMessage">Send</span>
-                    <span wire:loading wire:target="sendMessage">
+                    <span x-show="!isLoading">Send</span>
+                    <span x-show="isLoading" x-cloak>
                         <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>

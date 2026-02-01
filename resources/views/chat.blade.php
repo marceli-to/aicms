@@ -34,6 +34,7 @@
         }
     </script>
     <style>
+        [x-cloak] { display: none !important; }
         .orb {
             position: absolute;
             border-radius: 50%;
