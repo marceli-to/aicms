@@ -89,6 +89,8 @@ class ContentEditor
 
     public function processMessage(string $message, array $conversationHistory): array
     {
+        set_time_limit(120); // Allow up to 2 minutes for AI processing
+
         $systemPrompt = $this->buildSystemPrompt();
         $tools = $this->getTools();
 
