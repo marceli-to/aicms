@@ -65,7 +65,7 @@ class ContentEditor
 
         $response = $this->callAnthropic($systemPrompt, $messages, $tools);
 
-        return $this->handleResponse($response);
+        return $this->handleResponse($response, $messages);
     }
 
     protected function buildSystemPrompt(): string
@@ -187,7 +187,7 @@ PROMPT;
         return $response->json();
     }
 
-    protected function handleResponse(array $response): array
+    protected function handleResponse(array $response, array $messages): array
     {
         $changes = [];
         $textContent = '';
@@ -216,15 +216,20 @@ PROMPT;
 
         // If there were tool uses, we need to continue the conversation
         if (!empty($toolResults) && $response['stop_reason'] === 'tool_use') {
-            // Make another API call with tool results
-            $continueResponse = $this->continueWithToolResults($response, $toolResults);
-            $textContent = '';
+            // Build continuation messages properly
+            $messages[] = ['role' => 'assistant', 'content' => $response['content']];
+            $messages[] = ['role' => 'user', 'content' => $toolResults];
 
-            foreach ($continueResponse['content'] ?? [] as $block) {
-                if ($block['type'] === 'text') {
-                    $textContent .= $block['text'];
-                }
-            }
+            $continueResponse = $this->callAnthropic(
+                $this->buildSystemPrompt(),
+                $messages,
+                $this->getTools()
+            );
+
+            // Recursively handle in case of more tool calls
+            $continued = $this->handleResponse($continueResponse, $messages);
+            $textContent = $continued['message'];
+            $changes = array_merge($changes, $continued['changes']);
         }
 
         return [
@@ -278,17 +283,4 @@ PROMPT;
         ];
     }
 
-    protected function continueWithToolResults(array $originalResponse, array $toolResults): array
-    {
-        $systemPrompt = $this->buildSystemPrompt();
-
-        // Build messages including the assistant's tool use and our tool results
-        $messages = [
-            ['role' => 'user', 'content' => 'Continue from tool results'],
-            ['role' => 'assistant', 'content' => $originalResponse['content']],
-            ['role' => 'user', 'content' => $toolResults],
-        ];
-
-        return $this->callAnthropic($systemPrompt, $messages, $this->getTools());
-    }
 }
