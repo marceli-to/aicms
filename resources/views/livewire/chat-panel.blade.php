@@ -1,4 +1,4 @@
-<div class="flex gap-4" x-data="{ pendingMessage: '' }" x-on:message-sent.window="pendingMessage = ''"
+<div class="flex gap-4" x-data="{ pendingMessage: '' }" x-on:message-sent.window="pendingMessage = ''">
     {{-- Main Chat Panel --}}
     <div class="flex-1 bg-white rounded-lg shadow-lg overflow-hidden">
         {{-- Messages Area --}}
